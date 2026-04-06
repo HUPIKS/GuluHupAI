@@ -1,83 +1,77 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GuluHup AI</title>
     <script src="https://sdk.max.ru/js/max-app-sdk.js"></script>
     <style>
-        body { background: #f4f7f6; font-family: sans-serif; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
-        textarea { width: 100%; height: 100px; border-radius: 12px; border: 1px solid #ddd; padding: 10px; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; background: #81c784; border: none; border-radius: 12px; color: white; font-weight: bold; margin-top: 10px; cursor: pointer; }
-        .debug-box { margin-top: 15px; font-size: 10px; background: #eee; padding: 10px; border-radius: 8px; text-align: left; word-break: break-all; }
-        input { width: 100%; padding: 8px; margin-top: 5px; font-size: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        :root { --spring: #81c784; --bg: #f1f8e9; }
+        body { background: var(--bg); font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
+        textarea { width: 100%; height: 120px; border: 2px solid #ddd; border-radius: 12px; padding: 12px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; }
+        button { width: 100%; padding: 16px; background: var(--spring); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        #status { font-size: 11px; color: #777; margin-top: 15px; text-align: center; }
     </style>
 </head>
 <body>
+
     <div class="card">
         <h3>🌸 GuluHup AI</h3>
-        <textarea id="prompt" placeholder="Ваш запрос..."></textarea>
-        
-        <div style="font-size: 11px; color: #666; margin-top: 10px;">ID пользователя (определится сам или введите):</div>
-        <input type="text" id="manual_id" placeholder="ID подтянется автоматически...">
-        
+        <textarea id="prompt" placeholder="Напиши свой запрос..."></textarea>
         <button id="send">Отправить ✨</button>
-        
-        <div class="debug-box" id="debug">Ищу данные пользователя...</div>
+        <div id="status">Определение ID...</div>
     </div>
 
     <script>
-        const debug = document.getElementById('debug');
-        const manualIdInput = document.getElementById('manual_id');
-
-        function findUserId() {
-            const max = window.MaxApp;
-            // 1. Ищем в SDK
-            if (max?.initDataUnsafe?.user?.id) return max.initDataUnsafe.user.id;
-            
-            // 2. Ищем в URL (search или hash)
-            const fullData = window.location.search + window.location.hash;
-            const params = new URLSearchParams(fullData.replace('#', '?'));
-            
-            // Проверяем все возможные ключи
-            const id = params.get('user_id') || params.get('id') || params.get('chat_id');
-            if (id) return id;
-
-            // 3. Пытаемся распарсить вложенный объект user в initData
+        const status = document.getElementById('status');
+        
+        function getUserId() {
             try {
-                const initData = params.get('initData') || max?.initData;
-                if (initData) {
-                    const subParams = new URLSearchParams(initData);
-                    const user = JSON.parse(subParams.get('user'));
-                    return user.id;
+                // Извлекаем данные из Hash, который ты скинул
+                const hash = window.location.hash.substring(1); // убираем #
+                const params = new URLSearchParams(hash);
+                const webAppData = params.get('WebAppData');
+                
+                if (webAppData) {
+                    const subParams = new URLSearchParams(webAppData);
+                    const userJson = subParams.get('user');
+                    if (userJson) {
+                        const user = JSON.parse(decodeURIComponent(userJson));
+                        return user.id; // Тот самый 6633548
+                    }
                 }
-            } catch(e) {}
-            
-            return "";
+            } catch (e) { console.log("Ошибка парсинга:", e); }
+            return "unknown";
         }
 
-        // Обновляем ID при загрузке
-        window.onload = () => {
-            const foundId = findUserId();
-            if (foundId) manualIdInput.value = foundId;
-            debug.innerText = "URL: " + window.location.search + "\nHash: " + window.location.hash;
-        };
+        const uid = getUserId();
+        status.innerText = "Ваш ID: " + uid;
 
         document.getElementById('send').onclick = async () => {
-            const prompt = document.getElementById('prompt').value;
-            const chatId = manualIdInput.value || "unknown";
+            const text = document.getElementById('prompt').value.trim();
+            if (!text) return;
 
-            if (!prompt) return alert("Введите текст!");
+            document.getElementById('send').disabled = true;
+            status.innerText = "ИИ думает... 🚀";
 
             try {
-                const resp = await fetch("https://328a-93-123-84-16.ngrok-free.app/api/generate", {
+                // ЗАМЕНИ НА СВОЙ АКТУАЛЬНЫЙ NGROK
+                await fetch("https://328a-93-123-84-16.ngrok-free.app/api/generate", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ prompt: prompt, chat_id: chatId })
+                    body: JSON.stringify({ 
+                        prompt: text, 
+                        chat_id: uid 
+                    })
                 });
-                alert("Запрос ушел на сервер!");
+                alert("Готово! Ответ придет в чат.");
+                if (window.MaxApp?.close) window.MaxApp.close();
             } catch (e) {
-                alert("Ошибка ngrok: " + e.message);
+                alert("Ошибка: сервер не отвечает!");
+            } finally {
+                document.getElementById('send').disabled = false;
+                status.innerText = "Ваш ID: " + uid;
             }
         };
     </script>
