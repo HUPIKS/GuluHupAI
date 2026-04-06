@@ -3,92 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GuluHup AI</title>
-    <script src="https://sdk.max.ru/js/max-app-sdk.js"></script>
+    <title>AI Mini App</title>
     <style>
-        body { background: #f1f8e9; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
-        textarea { width: 100%; height: 120px; border: 2px solid #ddd; border-radius: 12px; padding: 12px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; outline: none; }
-        button { width: 100%; padding: 16px; background: #81c784; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
-        #status { font-size: 11px; color: #777; margin-top: 15px; text-align: center; white-space: pre-wrap; }
+        body { font-family: -apple-system, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
+        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
+        .msg { max-width: 80%; padding: 12px; border-radius: 15px; font-size: 15px; }
+        .user { align-self: flex-end; background: #007bff; color: white; border-bottom-right-radius: 2px; }
+        .bot { align-self: flex-start; background: white; color: #333; border-bottom-left-radius: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        img { width: 100%; border-radius: 10px; margin-top: 8px; }
+        #input-area { background: white; padding: 15px; border-top: 1px solid #ddd; }
+        .controls { display: flex; gap: 10px; align-items: center; }
+        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; }
+        .loading { display: none; text-align: center; color: #888; font-size: 13px; margin-bottom: 5px; }
     </style>
 </head>
 <body>
-
-    <div class="card">
-        <h3>🌸 GuluHup AI</h3>
-        <textarea id="prompt" placeholder="Напиши свой запрос..."></textarea>
-        <button id="send">Отправить ✨</button>
-        <div id="status">Загрузка данных...</div>
+    <div id="chat"><div class="msg bot">Привет! Я ИИ. Могу рисовать, менять фото и отвечать на вопросы.</div></div>
+    <div id="input-area">
+        <div class="loading" id="loader">Нейроны шуршат...</div>
+        <div class="controls">
+            <label style="cursor:pointer; font-size: 20px;">
+                <input type="file" id="imageInput" accept="image/*" style="display:none"> 📷
+            </label>
+            <input type="text" id="userInput" placeholder="Напиши запрос...">
+            <button onclick="send()">↑</button>
+        </div>
     </div>
 
     <script>
-        const status = document.getElementById('status');
-        const btn = document.getElementById('send');
-        
-        // Функция парсинга твоей специфической строки из MAX
-        function getUserId() {
+        // ЗАМЕНИ НА URL СВОЕГО СЕРВЕРА (например, https://my-app.render.com)
+        const BACKEND_URL = "http://localhost:8000"; 
+
+        async function send() {
+            const textInput = document.getElementById('userInput');
+            const fileInput = document.getElementById('imageInput');
+            const loader = document.getElementById('loader');
+            const prompt = textInput.value.trim();
+
+            if (!prompt && !fileInput.files[0]) return;
+
+            addMsg(prompt || "Обработка фото...", 'user');
+            textInput.value = '';
+            loader.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('prompt', prompt);
+            if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+
             try {
-                const hash = window.location.hash.substring(1);
-                const params = new URLSearchParams(hash);
-                
-                // 1. Достаем WebAppData
-                const webAppDataStr = params.get('WebAppData');
-                if (!webAppDataStr) return "no_data";
-
-                // 2. Разбираем внутренности WebAppData
-                const subParams = new URLSearchParams(webAppDataStr);
-                const userJsonStr = subParams.get('user');
-                if (!userJsonStr) return "no_user_in_data";
-
-                // 3. Декодируем и превращаем в объект
-                const user = JSON.parse(decodeURIComponent(userJsonStr));
-                return user.id; // Твой 6633548
+                const response = await fetch(`${BACKEND_URL}/api/process`, { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.type === 'photo') addImg(data.content);
+                else addMsg(data.content, 'bot');
             } catch (e) {
-                return "err_" + e.message;
+                addMsg("Ошибка связи с сервером", 'bot');
+            } finally {
+                loader.style.display = 'none';
+                fileInput.value = '';
             }
         }
 
-        const uid = getUserId();
-        status.innerText = "Ваш ID: " + uid;
+        function addMsg(text, side) {
+            const div = document.createElement('div');
+            div.className = `msg ${side}`;
+            div.innerText = text;
+            document.getElementById('chat').appendChild(div);
+            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        }
 
-        btn.onclick = async () => {
-            const text = document.getElementById('prompt').value.trim();
-            if (!text) return;
-
-            btn.disabled = true;
-            btn.innerText = "Отправка...";
-            status.innerText = "Связываюсь с сервером...";
-
-            try {
-                // ТВОЯ ССЫЛКА ИЗ NGROK
-                const response = await fetch("https://328a-93-123-84-16.ngrok-free.app/api/generate", {
-                    method: "POST",
-                    mode: "cors", // Важно для ngrok
-                    headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true" // Убирает заглушку ngrok
-                    },
-                    body: JSON.stringify({ 
-                        prompt: text, 
-                        chat_id: uid 
-                    })
-                });
-
-                if (response.ok) {
-                    status.innerText = "Успешно! Ответ придет в чат.";
-                    setTimeout(() => { if(window.MaxApp?.close) window.MaxApp.close(); }, 2000);
-                } else {
-                    status.innerText = "Ошибка сервера: " + response.status;
-                }
-            } catch (e) {
-                status.innerText = "Сервер не отвечает.\nПроверь, запущен ли Python и ngrok!";
-                console.error(e);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Отправить ✨";
-            }
-        };
+        function addImg(base64) {
+            const div = document.createElement('div');
+            div.className = `msg bot`;
+            div.innerHTML = `<img src="data:image/jpeg;base64,${base64}">`;
+            document.getElementById('chat').appendChild(div);
+            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        }
     </script>
 </body>
 </html>
