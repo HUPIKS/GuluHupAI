@@ -1,70 +1,55 @@
-<script>
-    const maxApp = window.MaxApp;
-    if (maxApp && maxApp.expand) maxApp.expand();
-
-    // Функция для получения параметров из URL
-    function getQueryParam(param) {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(param);
-    }
-
-    const SERVER_URL = "https://328a-93-123-84-16.ngrok-free.app";
-
-    let mode = 'text';
-    const mText = document.getElementById('mText');
-    const mImg = document.getElementById('mImg');
-    const btn = document.getElementById('send');
-    const input = document.getElementById('prompt');
-
-    mText.onclick = () => { mode = 'text'; mText.classList.add('active'); mImg.classList.remove('active'); };
-    mImg.onclick = () => { mode = 'image'; mImg.classList.add('active'); mText.classList.remove('active'); };
-
-    btn.onclick = async () => {
-        const val = input.value.trim();
-        if (!val) return alert("Поле не может быть пустым!");
-
-        btn.disabled = true;
-        btn.innerText = "ИИ думает...";
-
-        // --- ИСПРАВЛЕНИЕ ТУТ ---
-        // Пытаемся достать ID из разных мест, где его может прятать MAX
-        let userId = "unknown";
-        
-        // 1. Пробуем через SDK
-        if (maxApp && maxApp.initDataUnsafe && maxApp.initDataUnsafe.user) {
-            userId = maxApp.initDataUnsafe.user.id;
-        } 
-        // 2. Если SDK пустое, ищем в URL (часто MAX передает его там)
-        if (userId === "unknown") {
-            userId = getQueryParam('user_id') || getQueryParam('chat_id') || getQueryParam('id');
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://sdk.max.ru/js/max-app-sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f0f0f0; }
+        #debug { 
+            background: #222; color: #0f0; padding: 10px; 
+            font-size: 10px; border-radius: 10px; margin-top: 20px;
+            white-space: pre-wrap; word-break: break-all;
         }
-        // -----------------------
+        button { width: 100%; padding: 15px; background: #81c784; border: none; border-radius: 10px; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Debug Mode 🛠️</h2>
+    <button id="send">Проверить связь</button>
+    <div id="debug">Ожидание данных...</div>
 
-        const payload = {
-            prompt: mode === 'image' ? "Создай " + val : val,
-            chat_id: userId
+    <script>
+        const debugDiv = document.getElementById('debug');
+        const maxApp = window.MaxApp;
+
+        // Выводим всё, что есть в URL и в SDK
+        window.onload = () => {
+            const info = {
+                url_params: window.location.search,
+                sdk_exists: !!maxApp,
+                initData: maxApp?.initData || "пусто",
+                initDataUnsafe: maxApp?.initDataUnsafe || "пусто"
+            };
+            debugDiv.innerText = JSON.stringify(info, null, 2);
         };
 
-        try {
-            const response = await fetch(SERVER_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            });
-
-            const data = await response.json();
+        document.getElementById('send').onclick = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            // Пытаемся найти хоть какой-то ID
+            const userId = urlParams.get('user_id') || urlParams.get('id') || maxApp?.initDataUnsafe?.user?.id || "STILL_UNKNOWN";
             
-            if (data.success) {
-                alert("Запрос отправлен! Бот ответит в чат.");
-                if (maxApp && maxApp.close) maxApp.close();
-            } else {
-                alert("Ошибка: " + (data.error || "Неизвестно"));
+            debugDiv.innerText += "\n\nОтправляю ID: " + userId;
+
+            try {
+                await fetch("https://328a-93-123-84-16.ngrok-free.app/api/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ prompt: "тест", chat_id: userId })
+                });
+                alert("Запрос ушел!");
+            } catch (e) {
+                alert("Ошибка fetch");
             }
-        } catch (err) {
-            alert("Ошибка связи с сервером! Проверь ngrok.");
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Отправить ✨";
-        }
-    };
-</script>
+        };
+    </script>
+</body>
+</html>
