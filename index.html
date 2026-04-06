@@ -1,168 +1,70 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GuluHup AI MAX</title>
-    <script src="https://sdk.max.ru/js/max-app-sdk.js"></script>
-    <style>
-        :root {
-            --bg-grad: linear-gradient(135deg, #f3fbf1 0%, #fef0f5 100%);
-            --accent: #81c784;
-            --text-main: #2e7d32;
-        }
+<script>
+    const maxApp = window.MaxApp;
+    if (maxApp && maxApp.expand) maxApp.expand();
 
-        body {
-            background: var(--bg-grad);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
+    // Функция для получения параметров из URL
+    function getQueryParam(param) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(param);
+    }
 
-        .card {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(10px);
-            border-radius: 25px;
-            padding: 25px;
-            width: 100%;
-            max-width: 380px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            border: 1px solid white;
-            box-sizing: border-box;
-        }
+    const SERVER_URL = "https://328a-93-123-84-16.ngrok-free.app";
 
-        h2 { color: var(--text-main); text-align: center; margin-bottom: 20px; }
+    let mode = 'text';
+    const mText = document.getElementById('mText');
+    const mImg = document.getElementById('mImg');
+    const btn = document.getElementById('send');
+    const input = document.getElementById('prompt');
 
-        .mode-switch {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
+    mText.onclick = () => { mode = 'text'; mText.classList.add('active'); mImg.classList.remove('active'); };
+    mImg.onclick = () => { mode = 'image'; mImg.classList.add('active'); mText.classList.remove('active'); };
 
-        .mode-btn {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid var(--accent);
-            border-radius: 12px;
-            background: white;
-            color: var(--text-main);
-            font-weight: bold;
-            cursor: pointer;
-            transition: 0.3s;
-        }
+    btn.onclick = async () => {
+        const val = input.value.trim();
+        if (!val) return alert("Поле не может быть пустым!");
 
-        .mode-btn.active {
-            background: var(--accent);
-            color: white;
-        }
+        btn.disabled = true;
+        btn.innerText = "ИИ думает...";
 
-        textarea {
-            width: 100%;
-            height: 120px;
-            border: 2px solid #ddd;
-            border-radius: 15px;
-            padding: 12px;
-            font-size: 16px;
-            margin-bottom: 15px;
-            outline: none;
-            box-sizing: border-box;
-            resize: none;
-        }
-
-        .btn-send {
-            width: 100%;
-            background: var(--accent);
-            color: white;
-            border: none;
-            padding: 16px;
-            border-radius: 15px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(129, 199, 132, 0.3);
-        }
-
-        .btn-send:disabled { background: #ccc; box-shadow: none; }
-    </style>
-</head>
-<body>
-
-    <div class="card">
-        <h2>🌸 GuluHup MAX</h2>
+        // --- ИСПРАВЛЕНИЕ ТУТ ---
+        // Пытаемся достать ID из разных мест, где его может прятать MAX
+        let userId = "unknown";
         
-        <div class="mode-switch">
-            <button class="mode-btn active" id="mText">Текст ✍️</button>
-            <button class="mode-btn" id="mImg">Картинка 🎨</button>
-        </div>
+        // 1. Пробуем через SDK
+        if (maxApp && maxApp.initDataUnsafe && maxApp.initDataUnsafe.user) {
+            userId = maxApp.initDataUnsafe.user.id;
+        } 
+        // 2. Если SDK пустое, ищем в URL (часто MAX передает его там)
+        if (userId === "unknown") {
+            userId = getQueryParam('user_id') || getQueryParam('chat_id') || getQueryParam('id');
+        }
+        // -----------------------
 
-        <textarea id="prompt" placeholder="Что спросим у ИИ?"></textarea>
-        
-        <button class="btn-send" id="send">Отправить ✨</button>
-    </div>
-
-    <script>
-        const maxApp = window.MaxApp;
-        if (maxApp && maxApp.expand) maxApp.expand();
-
-        // КОНФИГУРАЦИЯ: ЗАМЕНИ НА СВОЮ ССЫЛКУ ИЗ NGROK
-        const SERVER_URL = "https://328a-93-123-84-16.ngrok-free.app";
-
-        let mode = 'text';
-        const mText = document.getElementById('mText');
-        const mImg = document.getElementById('mImg');
-        const btn = document.getElementById('send');
-        const input = document.getElementById('prompt');
-
-        mText.onclick = () => { mode = 'text'; mText.classList.add('active'); mImg.classList.remove('active'); };
-        mImg.onclick = () => { mode = 'image'; mImg.classList.add('active'); mText.classList.remove('active'); };
-
-        btn.onclick = async () => {
-            const val = input.value.trim();
-            if (!val) return alert("Поле не может быть пустым!");
-
-            btn.disabled = true;
-            btn.innerText = "ИИ думает...";
-
-            // Пытаемся достать данные пользователя из MAX SDK
-            // Если SDK не отдает ID, сервер получит "unknown"
-            let userId = "unknown";
-            try {
-                if (maxApp && maxApp.initDataUnsafe && maxApp.initDataUnsafe.user) {
-                    userId = maxApp.initDataUnsafe.user.id;
-                }
-            } catch(e) { console.error("Ошибка SDK:", e); }
-
-            const payload = {
-                prompt: mode === 'image' ? "Создай " + val : val,
-                chat_id: userId
-            };
-
-            try {
-                const response = await fetch(SERVER_URL, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert("Готово! Бот отправит ответ в чат.");
-                    if (maxApp && maxApp.close) maxApp.close();
-                } else {
-                    alert("Ошибка сервера: " + (data.error || "Неизвестно"));
-                }
-            } catch (err) {
-                alert("Не удалось связаться с сервером. Проверьте ngrok!");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Отправить ✨";
-            }
+        const payload = {
+            prompt: mode === 'image' ? "Создай " + val : val,
+            chat_id: userId
         };
-    </script>
-</body>
-</html>
+
+        try {
+            const response = await fetch(SERVER_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                alert("Запрос отправлен! Бот ответит в чат.");
+                if (maxApp && maxApp.close) maxApp.close();
+            } else {
+                alert("Ошибка: " + (data.error || "Неизвестно"));
+            }
+        } catch (err) {
+            alert("Ошибка связи с сервером! Проверь ngrok.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Отправить ✨";
+        }
+    };
+</script>
