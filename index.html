@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GuluHup AI Max</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --spring-green: #e8f5e9;
+            --spring-accent: #81c784;
+            --spring-pink: #fce4ec;
+            --spring-text: #2e7d32;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--spring-green) 0%, var(--spring-pink) 100%);
+            background-attachment: fixed;
+            color: #333;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        h1 {
+            color: var(--spring-text);
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .section-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--spring-text);
+            margin: 15px 0 8px 5px;
+            display: block;
+        }
+
+        select, textarea {
+            width: 100%;
+            border: 2px solid var(--spring-accent);
+            border-radius: 12px;
+            padding: 12px;
+            box-sizing: border-box;
+            font-size: 16px;
+            outline: none;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        textarea {
+            height: 120px;
+            resize: none;
+            margin-bottom: 20px;
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            width: 100%;
+        }
+
+        button {
+            border: none;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-send {
+            background-color: var(--spring-accent);
+            color: white;
+            grid-column: span 2;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 15px rgba(129, 199, 132, 0.3);
+        }
+
+        .btn-mode {
+            background-color: white;
+            border: 2px solid var(--spring-accent);
+            color: var(--spring-text);
+        }
+
+        .btn-mode.active {
+            background-color: #c8e6c9;
+        }
+
+        button:active {
+            transform: scale(0.96);
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌸 GuluHup AI</h1>
+
+    <span class="section-label">Выбери интеллект:</span>
+    <select id="model-select">
+        <option value="gpt54mini">GPT-5.4 mini</option>
+        <option value="gpt54">GPT-5.4</option>
+        <option value="gemini3flash" selected>Gemini 3 Flash</option>
+        <option value="gemini31pro">Gemini 3.1 Pro</option>
+        <option value="claudesonnet">Claude Sonnet 4.6</option>
+    </select>
+
+    <span class="section-label">Твой запрос:</span>
+    <textarea id="user-prompt" placeholder="Напиши идею или опиши картинку..."></textarea>
+
+    <div class="btn-group">
+        <button class="btn-send" id="main-action">
+            <span>Отправить запрос</span> 🚀
+        </button>
+        <button class="btn-mode active" id="mode-text">Текст ✍️</button>
+        <button class="btn-mode" id="mode-image">Картинка 🎨</button>
+    </div>
+</div>
+
+<div class="footer">@GuluHup_bot • Весна 2026</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    // Настройка цветов под тему ТГ (если нужно)
+    if (tg.themeParams.button_color) {
+        document.documentElement.style.setProperty('--spring-accent', tg.themeParams.button_color);
+    }
+
+    let currentMode = 'text';
+    const textBtn = document.getElementById('mode-text');
+    const imgBtn = document.getElementById('mode-image');
+    const mainBtn = document.getElementById('main-action');
+    const promptInput = document.getElementById('user-prompt');
+    const modelSelect = document.getElementById('model-select');
+
+    // Переключение режимов
+    textBtn.onclick = () => {
+        currentMode = 'text';
+        textBtn.classList.add('active');
+        imgBtn.classList.remove('active');
+        mainBtn.innerHTML = 'Отправить текст 🚀';
+    };
+
+    imgBtn.onclick = () => {
+        currentMode = 'image';
+        imgBtn.classList.add('active');
+        textBtn.classList.remove('active');
+        mainBtn.innerHTML = 'Создать фото 🎨';
+    };
+
+    // Главное действие
+    mainBtn.onclick = () => {
+        const text = promptInput.value.trim();
+        const model = modelSelect.value;
+
+        if (!text) {
+            tg.showAlert("Сначала напиши что-нибудь! ✨");
+            return;
+        }
+
+        // Формируем сообщение для бота
+        // Если выбран режим картинки, добавим ключевое слово, которое ловит твой Python-код
+        let finalPrompt = text;
+        if (currentMode === 'image') {
+            finalPrompt = "Создай " + text;
+        }
+
+        // Отправляем данные в бот
+        tg.sendData(finalPrompt);
+        tg.close();
+    };
+</script>
+
+</body>
+</html>
