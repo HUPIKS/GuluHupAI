@@ -8,35 +8,29 @@
         :root { --sakura: #ffdae9; --leaf: #a8e063; --sky: #e3f2fd; --deep-green: #2d5a27; }
         body { font-family: 'Segoe UI', sans-serif; margin: 0; background: linear-gradient(135deg, var(--sakura), var(--sky)); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        /* Панель сверху */
         .header { background: rgba(255, 255, 255, 0.8); padding: 10px; border-bottom: 2px solid var(--sakura); z-index: 10; }
         .row { display: flex; gap: 8px; }
         select { flex: 1; padding: 10px; border-radius: 12px; border: 1px solid var(--leaf); outline: none; background: white; font-size: 13px; }
 
-        /* Чат */
         #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
-        .msg { max-width: 85%; padding: 12px 16px; border-radius: 20px; font-size: 15px; line-height: 1.4; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .msg { max-width: 85%; padding: 12px 16px; border-radius: 20px; font-size: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
         .user { align-self: flex-end; background: var(--leaf); color: white; border-bottom-right-radius: 2px; }
         .bot { align-self: flex-start; background: white; color: #444; border-bottom-left-radius: 2px; }
         
-        /* Картинки в чате */
-        .bot img { width: 100%; border-radius: 15px; margin-top: 10px; border: 3px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .bot img { width: 100%; border-radius: 15px; margin-top: 10px; border: 3px solid white; }
         .dl-btn { display: block; text-align: center; background: var(--deep-green); color: white; padding: 10px; border-radius: 12px; text-decoration: none; font-size: 13px; margin-top: 8px; font-weight: bold; }
 
-        /* --- БЛОК ПРЕВЬЮ (Появляется над вводом) --- */
+        /* БЛОК ПРЕВЬЮ */
         #preview-container { 
-            display: none; /* Скрыто, пока не выбрано фото */
-            background: rgba(255, 255, 255, 0.95); 
+            display: none; 
+            background: white; 
             padding: 10px 15px; 
             border-top: 2px solid var(--leaf); 
             align-items: center; 
             gap: 15px;
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
         }
         .preview-wrapper { position: relative; width: 60px; height: 60px; }
         #imgPreview { width: 60px; height: 60px; object-fit: cover; border-radius: 10px; border: 2px solid var(--sakura); }
-        
-        /* КРАСНЫЙ КРЕСТИК */
         .btn-cancel { 
             position: absolute; top: -10px; right: -10px; 
             background: #ff4d4d; color: white; border: none; 
@@ -44,10 +38,8 @@
             cursor: pointer; font-weight: bold; font-size: 14px;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            z-index: 20;
         }
 
-        /* Поле ввода */
         #input-area { background: white; padding: 15px; border-top: 1px solid var(--sakura); }
         .loader { display: none; text-align: center; font-size: 13px; color: var(--deep-green); margin-bottom: 8px; font-weight: bold; }
         .controls { display: flex; gap: 12px; align-items: center; }
@@ -65,15 +57,15 @@
                 <option value="claudesonnet">Claude Sonnet 4.6</option>
             </select>
             <select id="ratioSelect">
-                <option value="1:1">1:1 (Квадрат)</option>
-                <option value="16:9">16:9 (HD)</option>
-                <option value="9:16">9:16 (Stories)</option>
+                <option value="1:1">1:1</option>
+                <option value="16:9">16:9</option>
+                <option value="9:16">9:16</option>
             </select>
         </div>
     </div>
 
     <div id="chat">
-        <div class="msg bot">Привет! 🌸 Выбери фото кнопкой 🖼️, и оно появится здесь для проверки перед отправкой.</div>
+        <div class="msg bot">🌸 Привет! Вставь актуальный URL в код и всё заработает.</div>
     </div>
 
     <div id="preview-container">
@@ -81,7 +73,7 @@
             <img src="" id="imgPreview">
             <button class="btn-cancel" onclick="clearPhoto()">✕</button>
         </div>
-        <div style="font-size: 13px; color: #555; font-weight: 500;">Картинка выбрана</div>
+        <div style="font-size: 13px; color: #555;">Фото выбрано</div>
     </div>
 
     <div id="input-area">
@@ -90,42 +82,41 @@
             <label style="cursor:pointer; font-size: 28px;">
                 <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="handlePreview(this)"> 🖼️
             </label>
-            <input type="text" id="userInput" placeholder="Напиши что-нибудь..." onkeypress="if(event.key==='Enter')send()">
+            <input type="text" id="userInput" placeholder="Напиши запрос..." onkeypress="if(event.key==='Enter')send()">
             <button class="send-btn" onclick="send()">↑</button>
         </div>
     </div>
 
     <script>
-        // ЗАМЕНИ НА СВОЙ АДРЕС СЕРВЕРА
-        const BACKEND_URL = "http://localhost:8000"; 
+        // ВАЖНО: Сюда вставь адрес своего сервера!
+        // Если через ngrok, то "https://xxx-xx.ngrok-free.app"
+        const BACKEND_URL = " https://328a-93-123-84-16.ngrok-free.app"; 
 
-        // 1. ПОКАЗ ПРЕВЬЮ
         function handlePreview(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const img = document.getElementById('imgPreview');
-                    const container = document.getElementById('preview-container');
-                    img.src = e.target.result;
-                    container.style.display = 'flex'; // Показываем блок
+                    document.getElementById('imgPreview').src = e.target.result;
+                    document.getElementById('preview-container').style.display = 'flex';
                 };
                 reader.readAsDataURL(input.files[0]);
             }
         }
 
-        // 2. ОЧИСТКА (КРЕСТИК)
         function clearPhoto() {
-            document.getElementById('fileInput').value = ""; // Удаляем файл из памяти
-            document.getElementById('preview-container').style.display = 'none'; // Прячем блок
+            document.getElementById('fileInput').value = "";
+            document.getElementById('preview-container').style.display = 'none';
         }
 
         async function updateModel() {
             const m = document.getElementById('modelSelect').value;
-            await fetch(`${BACKEND_URL}/api/set_model`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ model: m })
-            });
+            try {
+                await fetch(`${BACKEND_URL}/api/set_model`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ model: m })
+                });
+            } catch(e) { console.error("URL не отвечает"); }
         }
 
         async function send() {
@@ -135,11 +126,11 @@
             
             if (!textEl.value && !fileEl.files[0]) return;
 
-            addMsg(textEl.value || "🎨 Обрабатываю фото...", 'user');
+            addMsg(textEl.value || "🎨 Обработка...", 'user');
             document.getElementById('loader').style.display = 'block';
             
             const fileData = fileEl.files[0];
-            clearPhoto(); // Сразу прячем превью при отправке
+            clearPhoto();
 
             const fd = new FormData();
             fd.append('prompt', textEl.value);
@@ -153,12 +144,12 @@
                 if (d.type === 'photo') {
                     addImg(d.content);
                 } else {
-                    // Убираем звездочки Markdown (*)
+                    // Очистка от звездочек
                     const cleanText = d.content.replace(/\*/g, '');
                     addMsg(cleanText, 'bot');
                 }
             } catch (e) {
-                addMsg("❌ Ошибка связи. Проверь BACKEND_URL в index.html", 'bot');
+                addMsg("❌ Ошибка связи. Проверь BACKEND_URL!", 'bot');
             } finally {
                 document.getElementById('loader').style.display = 'none';
                 textEl.value = '';
@@ -180,10 +171,7 @@
             const blob = b64ToBlob(b64, 'image/png');
             const url = URL.createObjectURL(blob);
             
-            d.innerHTML = `
-                <img src="${url}">
-                <a href="${url}" download="spring_ai_${Date.now()}.png" class="dl-btn">💾 СОХРАНИТЬ ФОТО</a>
-            `;
+            d.innerHTML = `<img src="${url}"><a href="${url}" download="photo.png" class="dl-btn">💾 СОХРАНИТЬ</a>`;
             const chat = document.getElementById('chat');
             chat.appendChild(d);
             chat.scrollTop = chat.scrollHeight;
