@@ -6,12 +6,11 @@
     <title>GuluHup AI</title>
     <script src="https://sdk.max.ru/js/max-app-sdk.js"></script>
     <style>
-        :root { --spring: #81c784; --bg: #f1f8e9; }
-        body { background: var(--bg); font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        body { background: #f1f8e9; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 350px; }
-        textarea { width: 100%; height: 120px; border: 2px solid #ddd; border-radius: 12px; padding: 12px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; }
-        button { width: 100%; padding: 16px; background: var(--spring); color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
-        #status { font-size: 11px; color: #777; margin-top: 15px; text-align: center; }
+        textarea { width: 100%; height: 120px; border: 2px solid #ddd; border-radius: 12px; padding: 12px; box-sizing: border-box; font-size: 16px; margin-bottom: 15px; outline: none; }
+        button { width: 100%; padding: 16px; background: #81c784; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; }
+        #status { font-size: 11px; color: #777; margin-top: 15px; text-align: center; white-space: pre-wrap; }
     </style>
 </head>
 <body>
@@ -20,58 +19,74 @@
         <h3>🌸 GuluHup AI</h3>
         <textarea id="prompt" placeholder="Напиши свой запрос..."></textarea>
         <button id="send">Отправить ✨</button>
-        <div id="status">Определение ID...</div>
+        <div id="status">Загрузка данных...</div>
     </div>
 
     <script>
         const status = document.getElementById('status');
+        const btn = document.getElementById('send');
         
+        // Функция парсинга твоей специфической строки из MAX
         function getUserId() {
             try {
-                // Извлекаем данные из Hash, который ты скинул
-                const hash = window.location.hash.substring(1); // убираем #
+                const hash = window.location.hash.substring(1);
                 const params = new URLSearchParams(hash);
-                const webAppData = params.get('WebAppData');
                 
-                if (webAppData) {
-                    const subParams = new URLSearchParams(webAppData);
-                    const userJson = subParams.get('user');
-                    if (userJson) {
-                        const user = JSON.parse(decodeURIComponent(userJson));
-                        return user.id; // Тот самый 6633548
-                    }
-                }
-            } catch (e) { console.log("Ошибка парсинга:", e); }
-            return "unknown";
+                // 1. Достаем WebAppData
+                const webAppDataStr = params.get('WebAppData');
+                if (!webAppDataStr) return "no_data";
+
+                // 2. Разбираем внутренности WebAppData
+                const subParams = new URLSearchParams(webAppDataStr);
+                const userJsonStr = subParams.get('user');
+                if (!userJsonStr) return "no_user_in_data";
+
+                // 3. Декодируем и превращаем в объект
+                const user = JSON.parse(decodeURIComponent(userJsonStr));
+                return user.id; // Твой 6633548
+            } catch (e) {
+                return "err_" + e.message;
+            }
         }
 
         const uid = getUserId();
         status.innerText = "Ваш ID: " + uid;
 
-        document.getElementById('send').onclick = async () => {
+        btn.onclick = async () => {
             const text = document.getElementById('prompt').value.trim();
             if (!text) return;
 
-            document.getElementById('send').disabled = true;
-            status.innerText = "ИИ думает... 🚀";
+            btn.disabled = true;
+            btn.innerText = "Отправка...";
+            status.innerText = "Связываюсь с сервером...";
 
             try {
-                // ЗАМЕНИ НА СВОЙ АКТУАЛЬНЫЙ NGROK
-                await fetch("https://328a-93-123-84-16.ngrok-free.app/api/generate", {
+                // ТВОЯ ССЫЛКА ИЗ NGROK
+                const response = await fetch("https://328a-93-123-84-16.ngrok-free.app/api/generate", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    mode: "cors", // Важно для ngrok
+                    headers: {
+                        "Content-Type": "application/json",
+                        "ngrok-skip-browser-warning": "true" // Убирает заглушку ngrok
+                    },
                     body: JSON.stringify({ 
                         prompt: text, 
                         chat_id: uid 
                     })
                 });
-                alert("Готово! Ответ придет в чат.");
-                if (window.MaxApp?.close) window.MaxApp.close();
+
+                if (response.ok) {
+                    status.innerText = "Успешно! Ответ придет в чат.";
+                    setTimeout(() => { if(window.MaxApp?.close) window.MaxApp.close(); }, 2000);
+                } else {
+                    status.innerText = "Ошибка сервера: " + response.status;
+                }
             } catch (e) {
-                alert("Ошибка: сервер не отвечает!");
+                status.innerText = "Сервер не отвечает.\nПроверь, запущен ли Python и ngrok!";
+                console.error(e);
             } finally {
-                document.getElementById('send').disabled = false;
-                status.innerText = "Ваш ID: " + uid;
+                btn.disabled = false;
+                btn.innerText = "Отправить ✨";
             }
         };
     </script>
