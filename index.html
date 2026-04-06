@@ -3,81 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Mini App</title>
+    <title>Spring AI Studio</title>
     <style>
-        body { font-family: -apple-system, sans-serif; margin: 0; background: #f0f2f5; display: flex; flex-direction: column; height: 100vh; }
-        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
-        .msg { max-width: 80%; padding: 12px; border-radius: 15px; font-size: 15px; }
-        .user { align-self: flex-end; background: #007bff; color: white; border-bottom-right-radius: 2px; }
-        .bot { align-self: flex-start; background: white; color: #333; border-bottom-left-radius: 2px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        img { width: 100%; border-radius: 10px; margin-top: 8px; }
-        #input-area { background: white; padding: 15px; border-top: 1px solid #ddd; }
+        :root { --sakura: #ffdae9; --leaf: #a8e063; --sky: #e3f2fd; --deep-green: #2d5a27; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: linear-gradient(135deg, var(--sakura), var(--sky)); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* Панель управления */
+        .header { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); padding: 10px; border-bottom: 2px solid var(--sakura); display: flex; flex-direction: column; gap: 8px; }
+        .row { display: flex; gap: 8px; align-items: center; }
+        select, .btn-toggle { flex: 1; padding: 8px; border-radius: 12px; border: 1px solid var(--leaf); outline: none; background: white; font-size: 13px; }
+        
+        /* Чат */
+        #chat { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+        .msg { max-width: 85%; padding: 12px; border-radius: 20px; font-size: 14px; line-height: 1.5; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .user { align-self: flex-end; background: var(--leaf); color: white; border-bottom-right-radius: 2px; }
+        .bot { align-self: flex-start; background: white; color: #444; border-bottom-left-radius: 2px; }
+        
+        /* Изображения */
+        .img-wrapper { margin-top: 8px; position: relative; }
+        img { width: 100%; border-radius: 15px; display: block; border: 3px solid white; box-sizing: border-box; }
+        .download-btn { display: block; text-align: center; background: var(--deep-green); color: white; padding: 8px; border-radius: 10px; text-decoration: none; font-size: 12px; margin-top: 6px; font-weight: bold; }
+
+        /* Ввод */
+        #input-area { background: white; padding: 15px; border-top: 1px solid var(--sakura); }
+        .loader { display: none; text-align: center; font-size: 12px; color: var(--deep-green); margin-bottom: 8px; font-style: italic; }
         .controls { display: flex; gap: 10px; align-items: center; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; outline: none; }
-        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; }
-        .loading { display: none; text-align: center; color: #888; font-size: 13px; margin-bottom: 5px; }
+        input[type="text"] { flex: 1; padding: 12px 20px; border: 2px solid var(--sakura); border-radius: 30px; outline: none; transition: 0.3s; }
+        input[type="text"]:focus { border-color: var(--leaf); }
+        .send-btn { background: var(--deep-green); color: white; border: none; width: 45px; height: 45px; border-radius: 50%; cursor: pointer; font-size: 20px; transition: 0.3s; }
+        .send-btn:hover { transform: scale(1.1); }
     </style>
 </head>
 <body>
-    <div id="chat"><div class="msg bot">Привет! Я ИИ. Могу рисовать, менять фото и отвечать на вопросы.</div></div>
+    <div class="header">
+        <div class="row">
+            <select id="modelSelect" onchange="updateModel()">
+                <option value="gemini3flash">Gemini 3 Flash</option>
+                <option value="gpt54mini">GPT-5.4 mini</option>
+                <option value="gpt54">GPT-5.4</option>
+                <option value="claudesonnet">Claude Sonnet 4.6</option>
+            </select>
+            <select id="ratioSelect">
+                <option value="1:1">Квадрат (1:1)</option>
+                <option value="16:9">Горизонт (16:9)</option>
+                <option value="9:16">Вертикаль (9:16)</option>
+                <option value="4:3">Классика (4:3)</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="chat">
+        <div class="msg bot">Привет! 🌸 Я весенний ИИ. Выбери модель и формат фото выше. Я могу рисовать, менять формат твоих фото или просто болтать!</div>
+    </div>
+
     <div id="input-area">
-        <div class="loading" id="loader">Нейроны шуршат...</div>
+        <div class="loader" id="loader">🌸 Лепестки сакуры собираются в ответ...</div>
         <div class="controls">
-            <label style="cursor:pointer; font-size: 20px;">
-                <input type="file" id="imageInput" accept="image/*" style="display:none"> 📷
+            <label style="cursor:pointer; font-size: 24px;" title="Загрузить фото для правки">
+                <input type="file" id="fileInput" accept="image/*" style="display:none"> 🖼️
             </label>
-            <input type="text" id="userInput" placeholder="Напиши запрос...">
-            <button onclick="send()">↑</button>
+            <input type="text" id="userInput" placeholder="Напиши запрос..." onkeypress="if(event.key==='Enter')send()">
+            <button class="send-btn" onclick="send()">↑</button>
         </div>
     </div>
 
     <script>
-        // ЗАМЕНИ НА URL СВОЕГО СЕРВЕРА (например, https://my-app.render.com)
-        const BACKEND_URL = "http://localhost:8000"; 
+        const BACKEND_URL = "http://твой-ip-или-домен:8000"; 
+
+        async function updateModel() {
+            const m = document.getElementById('modelSelect').value;
+            await fetch(`${BACKEND_URL}/api/set_model`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ model: m })
+            });
+        }
 
         async function send() {
-            const textInput = document.getElementById('userInput');
-            const fileInput = document.getElementById('imageInput');
-            const loader = document.getElementById('loader');
-            const prompt = textInput.value.trim();
+            const textEl = document.getElementById('userInput');
+            const fileEl = document.getElementById('fileInput');
+            const ratio = document.getElementById('ratioSelect').value;
+            if (!textEl.value && !fileEl.files[0]) return;
 
-            if (!prompt && !fileInput.files[0]) return;
+            addMsg(textEl.value || "Меняю фото...", 'user');
+            document.getElementById('loader').style.display = 'block';
 
-            addMsg(prompt || "Обработка фото...", 'user');
-            textInput.value = '';
-            loader.style.display = 'block';
-
-            const formData = new FormData();
-            formData.append('prompt', prompt);
-            if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+            const fd = new FormData();
+            fd.append('prompt', textEl.value);
+            fd.append('ratio', ratio);
+            if (fileEl.files[0]) fd.append('file', fileEl.files[0]);
 
             try {
-                const response = await fetch(`${BACKEND_URL}/api/process`, { method: 'POST', body: formData });
-                const data = await response.json();
-                if (data.type === 'photo') addImg(data.content);
-                else addMsg(data.content, 'bot');
+                const r = await fetch(`${BACKEND_URL}/api/process`, { method: 'POST', body: fd });
+                const d = await r.json();
+                if (d.type === 'photo') addImg(d.content);
+                else addMsg(d.content, 'bot');
             } catch (e) {
-                addMsg("Ошибка связи с сервером", 'bot');
+                addMsg("Ошибка связи ❌ Проверь BACKEND_URL", 'bot');
             } finally {
-                loader.style.display = 'none';
-                fileInput.value = '';
+                document.getElementById('loader').style.display = 'none';
+                textEl.value = '';
+                fileEl.value = '';
             }
         }
 
-        function addMsg(text, side) {
-            const div = document.createElement('div');
-            div.className = `msg ${side}`;
-            div.innerText = text;
-            document.getElementById('chat').appendChild(div);
-            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        function addMsg(t, s) {
+            const d = document.createElement('div');
+            d.className = `msg ${s}`;
+            d.innerText = t;
+            const chat = document.getElementById('chat');
+            chat.appendChild(d);
+            chat.scrollTop = chat.scrollHeight;
         }
 
-        function addImg(base64) {
-            const div = document.createElement('div');
-            div.className = `msg bot`;
-            div.innerHTML = `<img src="data:image/jpeg;base64,${base64}">`;
-            document.getElementById('chat').appendChild(div);
-            document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
+        function addImg(b64) {
+            const d = document.createElement('div');
+            d.className = `msg bot img-wrapper`;
+            const src = `data:image/png;base64,${b64}`;
+            d.innerHTML = `<img src="${src}"><a href="${src}" download="spring_ai.png" class="download-btn">💾 СОХРАНИТЬ В ГАЛЕРЕЮ</a>`;
+            const chat = document.getElementById('chat');
+            chat.appendChild(d);
+            chat.scrollTop = chat.scrollHeight;
         }
     </script>
 </body>
